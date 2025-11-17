@@ -1,0 +1,12 @@
+# Large data files (use external storage or Git LFS)
+data/expr_common_full.csv
+data/meth_common_full.csv
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
