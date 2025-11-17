@@ -1,0 +1,22 @@
+{
+  "method": "gershgorin_diagonal_dominance",
+  "stability_margin": 0.05,
+  "matrix_shape": [
+    8378,
+    8378
+  ],
+  "n_nonzeros": 33512,
+  "density": 0.00047744091668656003,
+  "diagonal_mean": -0.5207400321960449,
+  "diagonal_std": 0.1579459011554718,
+  "diagonal_min": -1.3483481407165527,
+  "diagonal_max": -0.15121698379516602,
+  "n_negative_diagonal": 8378,
+  "n_positive_diagonal": 0,
+  "gershgorin_radius_mean": 0.47074007987976074,
+  "gershgorin_radius_max": 1.2983481884002686,
+  "spectral_abscissa_before": 0.7172748446464539,
+  "spectral_abscissa_after": -1.2642308473587036,
+  "is_stable": true,
+  "stability_margin_achieved": true
+}

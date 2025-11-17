@@ -1,0 +1,58 @@
+
+CYTOSCAPE IMPORT INSTRUCTIONS
+==============================
+
+1. INSTALL CYTOSCAPE
+   Download from: https://cytoscape.org/download.html
+
+2. IMPORT NETWORK
+   a. Open Cytoscape
+   b. File → Import → Network from File
+   c. Select: cytoscape_edges.csv
+   d. Set columns:
+      - Source: tf
+      - Target: target
+      - Interaction: interaction
+      - Edge Weight: weight
+   e. Click OK
+
+3. IMPORT NODE ATTRIBUTES
+   a. File → Import → Table from File
+   b. Select: cytoscape_nodes.csv
+   c. Set "gene" as Key Column
+   d. Click OK
+
+4. APPLY VISUAL STYLE
+   a. Go to "Style" panel (left sidebar)
+   b. Node Fill Color:
+      - Column: node_color
+      - Mapping Type: Passthrough
+   c. Node Size:
+      - Column: node_size
+      - Mapping Type: Passthrough
+   d. Edge Color:
+      - Column: edge_color
+      - Mapping Type: Passthrough
+   e. Edge Width:
+      - Column: edge_width
+      - Mapping Type: Passthrough
+
+5. LAYOUT
+   a. Layout → yFiles Layouts → Organic (recommended)
+   b. Or: Layout → Prefuse Force Directed Layout
+
+6. EXPORT
+   a. File → Export → Network to Image
+   b. Choose format: PNG, PDF, or SVG
+   c. Set resolution: 300 DPI for publication
+
+TIPS:
+- Use "Select → Nodes → By Column Value" to select specific node types
+- Right-click nodes to highlight neighbors
+- Use "View → Show Graphics Details" for high-quality rendering
+- Export as SVG for vector graphics (scalable)
+
+FILES CREATED:
+- cytoscape_edges.csv : Edge list with attributes
+- cytoscape_nodes.csv : Node attributes
+- cytoscape_instructions.txt : This file

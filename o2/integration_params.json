@@ -1,0 +1,23 @@
+{
+  "CORR_ABS_THRESHOLD_REMOVE": null,
+  "STABILITY_MARGIN": 0.05,
+  "TOP_K_PER_TARGET": 3,
+  "N_WORKERS": 8,
+  "TARGET_BATCH_SIZE": 2500,
+  "USE_SIGNED_WEIGHTS": true,
+  "GRN_METHOD_USED": "sklearn_lasso",
+  "MAX_TFS": 500,
+  "FILTER_LOW_VARIANCE_GENES": true,
+  "n_genes_initial": 8378,
+  "n_genes_final": 8378,
+  "n_genes_removed_by_threshold": 0,
+  "n_edges_initial": 25134,
+  "n_edges_final": 25134,
+  "density_initial": 0.00035808068751492004,
+  "density_final": 0.00035808068751492004,
+  "methylation_coverage_pct": 100.0,
+  "mean_scaling_factor": 0.9712485074996948,
+  "n_genes_suppressed": 4842,
+  "n_genes_enhanced": 3536,
+  "n_genes_unmodulated": 0
+}
