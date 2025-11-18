@@ -1,6 +1,9 @@
 # Large data files (use external storage or Git LFS)
 data/expr_common_full.csv
 data/meth_common_full.csv
+outputs/A_extracted_dense.npy
+o2/A_extracted_dense.npy
+
 
 # Python cache
 __pycache__/
