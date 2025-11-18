@@ -182,7 +182,9 @@ class MPCController:
                  verbose: bool = False,
                  stop_on_divergence: bool = True,
                  divergence_factor: float = 10.0,
-                 divergence_patience: int = 3) -> Tuple[np.ndarray, np.ndarray]:
+                 divergence_patience: int = 3,
+                 save_path: Optional[str] = None,
+                 return_history: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Simulate the closed-loop system starting from x0 for `steps` steps.
 
         disturbances: optional array of shape (steps, n) added to the state update.
@@ -199,6 +201,7 @@ class MPCController:
 
         Xs = np.zeros((steps + 1, n))
         Us = np.zeros((steps, m))
+        errs = np.zeros((steps + 1,))
         Xs[0] = x
 
         # initialize divergence detection
@@ -210,6 +213,7 @@ class MPCController:
             init_err = 1e-12
         prev_err = init_err
         increases = 0
+        errs[0] = init_err
 
         for k in range(steps):
             # compute and optionally print error (to target or to zero)
@@ -226,7 +230,16 @@ class MPCController:
                 if err > divergence_factor * init_err:
                     if verbose:
                         print(f"Early stop: error {err:.4e} exceeded divergence_factor {divergence_factor} * init_err {init_err:.4e}")
-                    return Xs[:k+1].copy(), Us[:k].copy()
+                    Xs_slice = Xs[:k+1].copy()
+                    Us_slice = Us[:k].copy()
+                    errs_slice = errs[:k+1].copy()
+                    if save_path is not None:
+                        np.savez_compressed(save_path, Xs=Xs_slice, Us=Us_slice, errs=errs_slice)
+                        if verbose:
+                            print(f"Saved simulation history to {save_path}")
+                    if return_history:
+                        return Xs_slice, Us_slice, errs_slice
+                    return Xs_slice, Us_slice
 
                 # monotonic growth detection (patience)
                 if err > prev_err:
@@ -236,7 +249,16 @@ class MPCController:
                 if increases >= divergence_patience and err > 2.0 * init_err:
                     if verbose:
                         print(f"Early stop: error increased for {increases} consecutive steps and reached {err:.4e}")
-                    return Xs[:k+1].copy(), Us[:k].copy()
+                    Xs_slice = Xs[:k+1].copy()
+                    Us_slice = Us[:k].copy()
+                    errs_slice = errs[:k+1].copy()
+                    if save_path is not None:
+                        np.savez_compressed(save_path, Xs=Xs_slice, Us=Us_slice, errs=errs_slice)
+                        if verbose:
+                            print(f"Saved simulation history to {save_path}")
+                    if return_history:
+                        return Xs_slice, Us_slice, errs_slice
+                    return Xs_slice, Us_slice
 
             prev_err = err
 
@@ -250,7 +272,21 @@ class MPCController:
             w = disturbances[k] if (disturbances is not None) else 0.0
             x = self.A @ x + self.B @ u + w
             Xs[k + 1] = x
+            # record next-step error
+            if x_target is not None:
+                next_err = np.linalg.norm(x - x_target)
+            else:
+                next_err = np.linalg.norm(x)
+            errs[k + 1] = next_err
 
+        # save final history if requested
+        if save_path is not None:
+            np.savez_compressed(save_path, Xs=Xs, Us=Us, errs=errs)
+            if verbose:
+                print(f"Saved simulation history to {save_path}")
+
+        if return_history:
+            return Xs, Us, errs
         return Xs, Us
 
 
@@ -421,7 +457,7 @@ if __name__ == "__main__":
     x_target = np.zeros(n)
 
     # simulate closed-loop while tracking x_target
-    Xs, Us = mpc.simulate(x0, steps=50, x_target=x_target, verbose=True)
+    Xs, Us = mpc.simulate(x0, steps=50, x_target=x_target, verbose=True, save_path="./simulation_history.npz")
     final = Xs[-1]
     print(f"Simulated {Xs.shape[0]-1} steps. Final state norm: {np.linalg.norm(final):.4e}")
     print(f"Distance to target: {np.linalg.norm(final - x_target)}")
