@@ -1,0 +1,32 @@
+[
+  {
+    "path": "output/A_final_stable.npz",
+    "exists": true,
+    "saved_dense": "output/A_extracted_dense.npy",
+    "saved_sparse": null,
+    "error": null,
+    "keys": [
+      "indices",
+      "indptr",
+      "format",
+      "shape",
+      "data"
+    ],
+    "reconstructed": "manual_csr"
+  },
+  {
+    "path": "o2/A_final_stable.npz",
+    "exists": true,
+    "saved_dense": "o2/A_extracted_dense.npy",
+    "saved_sparse": null,
+    "error": null,
+    "keys": [
+      "indices",
+      "indptr",
+      "format",
+      "shape",
+      "data"
+    ],
+    "reconstructed": "manual_csr"
+  }
+]
