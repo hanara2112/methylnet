@@ -20,6 +20,8 @@ from workspace files, a small random example is used.
 
 from typing import List, Tuple, Optional
 import numpy as np
+import pandas as pd
+from scipy.sparse import issparse
 import os
 import csv
 
@@ -349,9 +351,62 @@ def make_B_from_A(A: np.ndarray, strategy: str = "top_degree", m: int = 1, scale
         for j, i_node in enumerate(idx):
             B[i_node, j] = 1.0
         return B
-    # default fallback
-    return make_B_from_A(A, strategy="random", m=m, scale=scale)
 
+def make_B_via_name(A,genes_path, genes_list=None):
+    GENES = None
+    if os.path.exists(genes_path):
+        gdf = pd.read_csv(genes_path, header=0)
+        # try to infer gene column
+        if "gene" in gdf.columns:
+            GENES = gdf["gene"].astype(str).tolist()
+        else:
+            # if single column
+            GENES = gdf.iloc[:,0].astype(str).tolist()
+        assert len(GENES) == n, f"Gene list length {len(GENES)} != A.shape[0] {n}"
+        print("Loaded genes list, n =", len(GENES))
+    else:
+        # fallback: generate numeric gene names
+        GENES = [f"g{i}" for i in range(n)]
+        print("genes file not found; using synthetic gene names.")
+        
+    if issparse(A):
+        absA = abs(A)
+        degrees = np.array(absA.sum(axis=0)).ravel() + np.array(absA.sum(axis=1)).ravel() # in+out
+    else:
+        absA = np.abs(A)
+        degrees = absA.sum(axis=0) + absA.sum(axis=1)
+
+    # rank genes by degree
+    rank_idx = np.argsort(-degrees)
+    top_k = 20
+    top_genes = [(GENES[i], float(degrees[i])) for i in rank_idx[:top_k]]
+    top_df = pd.DataFrame(top_genes, columns=["gene","degree"])
+    print(top_df.head(10))
+    
+
+    if genes_list is None:
+        genes_list = []
+        k_control = top_k
+        selected_control_idx = rank_idx[:k_control].tolist()
+        control_gene_names = [GENES[i] for i in selected_control_idx]
+        print("Selected control genes (k={}):".format(k_control), control_gene_names)
+    else:
+        selected_control_idx = []
+        for g in genes_list:
+            if g in GENES:
+                idx = GENES.index(g)
+                selected_control_idx.append(idx)
+            else:
+                print(f"Warning: gene {g} not found in gene list; skipping.")
+        k_control = len(selected_control_idx)
+        control_gene_names = [GENES[i] for i in selected_control_idx]
+        print("Selected control genes (k={}):".format(k_control), control_gene_names)
+
+    B = np.zeros((n, k_control))
+    for j, idx in enumerate(selected_control_idx):
+        B[idx, j] = 1.0   # direct actuation
+        
+    return B
 
 def reconstruct_A_from_npz(path: str) -> Optional[np.ndarray]:
     """Try to reconstruct A from an npz file that may contain a CSR matrix.
@@ -384,6 +439,38 @@ def reconstruct_A_from_npz(path: str) -> Optional[np.ndarray]:
     except Exception:
         return None
     return None
+
+genes_path = "o2/genes_final.csv"
+selected_genes = [    
+    "ZNF512",
+    "ZNF525",
+    "ZNF205",
+    "SH3GL1",
+    "ZNF550",
+    "SLC5A3",
+    "ZNF787",
+    "PIK3R4",
+    "POLN",
+    "EPG5",
+    "WDR53",
+    "ALDH16A1",
+    "NRBP1",
+    "ARFRP1",
+    "EEF1G",
+    "PTTG1IP",
+    "LTB4R",
+    "QTRT1",
+    "VPS18",
+    "PCSK4",
+    "TPM1",
+    "APP",
+    "NXNL1",
+    "PLEKHN1",
+    "ZNF587",
+    "NEURL4",
+    "SRPK3"
+]
+
 
 
 if __name__ == "__main__":
@@ -428,8 +515,10 @@ if __name__ == "__main__":
     if B is None:
         print("B not found — building B from A")
         n = A.shape[0]
-        m = min(max(1, n // 10), 1000)
-        B = make_B_from_A(A, strategy="top_degree", m=m, scale=0.1, base_dir=base)
+        # m = min(max(1, n // 10), 1000)
+        m = 300
+        # B = make_B_from_A(A, strategy="top_degree", m=m, scale=0.1, base_dir=base)
+        B = make_B_via_name(A,genes_path,selected_genes)
         # save generated B for reproducibility
         save_dir = os.path.join(base, 'output') if os.path.exists(os.path.join(base, 'output')) else os.path.join(base, 'o2')
         os.makedirs(save_dir, exist_ok=True)
@@ -457,7 +546,7 @@ if __name__ == "__main__":
     x_target = np.zeros(n)
 
     # simulate closed-loop while tracking x_target
-    Xs, Us = mpc.simulate(x0, steps=50, x_target=x_target, verbose=True, save_path="./simulation_history.npz")
+    Xs, Us = mpc.simulate(x0, steps=50, x_target=x_target, verbose=True, save_path="./simulation_history_27.npz")
     final = Xs[-1]
     print(f"Simulated {Xs.shape[0]-1} steps. Final state norm: {np.linalg.norm(final):.4e}")
     print(f"Distance to target: {np.linalg.norm(final - x_target)}")
