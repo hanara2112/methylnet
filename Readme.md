@@ -1,196 +1,92 @@
-## Epigenetically-Informed Gene Regulatory Network for Control Theory
+## Epigenetically‑Informed GRN for Control (Breast Cancer)
+
+Builds a control‑ready, signed, stable gene regulatory network (GRN) from TCGA breast cancer by combining expression with DNA methylation, then validates network science properties and provides an MPC/LQR‑ready interface.
 
 ---
 
-## What We Built
-
-A **pipeline** to construct a **control-ready gene regulatory network** from TCGA breast cancer data, integrating:
-
-- Gene expression (8,378 genes, 1,417 samples)
-- DNA methylation (100% coverage)
-- Machine learning (ElasticNet regression)
-- Network stabilization (Gershgorin theorem)
-- Comprehensive validation (8 network metrics)
+### TL;DR
+- **System**: 8,378 genes, 25,134 signed edges, 99.96% sparse
+- **Stability**: λ_max ≈ -1.16 (all eigenvalues < 0, stable)
+- **Epigenetics**: 100% methylation coverage (4,842 suppressed, 3,536 enhanced)
+- **Topology**: Small‑world (clustering 0.133, path 3.77), not scale‑free (γ≈0.615), max out‑degree 353
+- **Control‑ready**: 7,899 driver nodes (94%). Ready for LQR/MPC with custom B
 
 ---
 
-## Key Results
-
-| Metric                    | Value          | Interpretation                      |
-| ------------------------- | -------------- | ----------------------------------- |
-| **System Matrix**   | 8,378 × 8,378 | State dimension (genes)             |
-| **Edges**           | 25,134         | Regulatory interactions             |
-| **Sparsity**        | 99.96%         | Highly sparse (efficient)           |
-| **Stability**       | λ_max = -1.16 | All eigenvalues < 0 (stable)        |
-| **Methylation**     | 100% coverage  | 4,842 suppressed, 3,536 enhanced    |
-| **Connectivity**    | 1 component    | Fully connected network             |
-| **Controllability** | 7,899 drivers  | 94% of genes are control candidates |
+### How it works (idea → execution)
+1. Preprocess TCGA tumor data (variance filtering, imputation) → 8,378 genes
+2. Infer GRN with ElasticNet (signed coefficients), keep top‑3 regulators/target
+3. Integrate methylation via per‑gene diagonal scaling of incoming edges
+4. Stabilize with Gershgorin diagonal dominance (set A[i,i] below −radius−margin)
+5. Validate network science metrics and spectrum; export plots and metadata
+6. Provide `A_final_stable.npz` + helpers for control design (`mpc.py`)
 
 ---
 
----
-
-Pipeline Overview
------------------
-
-```
-Data → Preprocessing → GRN Inference → Methylation → Stabilization → Validation
-11k     8k genes       ElasticNet      Integration    Gershgorin     8 metrics
-genes                  25k edges       Modulation     λ_max=-1.16    Complete
-```
-
-**Runtime:** ~20-25 minutes total
+### Major results
+| Metric | Value | Notes |
+| --- | --- | --- |
+| Nodes / Edges | 8,378 / 25,134 | Signed, sparse (0.036% dense) |
+| Stability | λ_max ≈ -1.16 | Stable after Gershgorin (margin 0.05) |
+| Methylation | 100% coverage | 4,842 suppressed, 3,536 enhanced |
+| Small‑world | C=0.133, L=3.77 | vs random: much higher C, shorter L |
+| Scale‑free | No (γ≈0.615) | Top‑k=3 imposes uniform in‑degree |
+| Hubs | max out‑deg = 353 | Master regulators present |
+| Controllability | 7,899 drivers (94%) | Many actuation candidates |
 
 ---
 
----
+### Figures
+![Eigenvalue spectrum (stable)](o2/eigenvalue_spectrum.png)
 
-Key Insights
-------------
-
-### Biological
-
-- **Methylation suppression dominance** (58% genes suppressed)
-- **Hierarchical regulation** (2.5% reciprocity, mostly unidirectional)
-- **Hub-based architecture** (5% master regulators control 95% targets)
-
-### Network
-
-- **Small-world** (high clustering, short paths)
-- **Not scale-free** (due to TOP_K=3 constraint)
-- **Fully connected** (single giant component)
-- **Modular** (functional gene modules)
-
-### Control Theory
-
-- **Stable open-loop** (all eigenvalues < 0)
-- **Highly controllable** (94% driver nodes)
-- **Sparse actuation** (can control with few inputs)
-- **Signed weights** (can analyze feedback loops)
+![Degree distributions](o2/degree_distributions.png)
 
 ---
 
-## Next Steps
-
-### For Control Design
-
-1. Define control objective (set-point regulation, trajectory tracking, or optimal control)
-2. Design B matrix (select control genes - drug targets)
-3. Compute controllability (check rank of controllability matrix)
-4. Design control law (LQR, MPC, or state feedback)
-5. Simulate controlled dynamics (verify convergence)
-
-### For Course Report
-
-1. Introduction (GRN + control theory background)
-2. Methods (pipeline description)
-3. Results (network properties + validation)
-4. Control design (B matrix + simulations)
-5. Discussion (biological implications)
-6. Conclusion (summary + future work)
-
----
-
-## Files Structure
-
-```
-├── o2/                          Output directory
-│   ├── A_final_stable.npz       System matrix
-│   ├── genes_final.csv          Gene names
-│   ├── integration_params.json  Pipeline metadata
-│   ├── stabilization_info.json  Eigenvalue metrics
-│   ├── graph_stats.json         Network statistics
-│   ├── degree_distributions.png Degree plots
-│   ├── eigenvalue_spectrum.png  Eigenvalue plot
-│   └── ... (13 more files)
-└── data/                        Input data
-    ├── expr_common_full.csv     Expression data
-    └── meth_common_full.csv     Methylation data
-```
-
----
-
-## Usage
-
-### Load System Matrix
-
+### Use this repository (quick start)
 ```python
 from scipy.sparse import load_npz
 import pandas as pd
 
 A = load_npz("o2/A_final_stable.npz")
 genes = pd.read_csv("o2/genes_final.csv")["gene"].tolist()
-
-print(f"System: {A.shape[0]} genes, {A.nnz} edges")
+print(A.shape, A.nnz)
 ```
 
-### Check Stability
-
+Control demo (discrete‑time, unconstrained MPC/LQR):
 ```python
-from scipy.sparse.linalg import eigs
-eigenvalues = eigs(A.asfptype(), k=10, which='LM', return_eigenvectors=False)
-print(f"Spectral abscissa: {max(eigenvalues.real):.6f}")
+import numpy as np
+from mpc import MPCController, make_B_from_A
+
+n = A.shape[0]; m = 20
+B = make_B_from_A(A.toarray(), strategy="top_degree", m=m, scale=0.1, base_dir=".")
+Q = np.eye(n); R = 0.1*np.eye(m); Qf = 10*np.eye(n)
+mpc = MPCController(A.toarray(), B, Q, R, N=20, Qf=Qf)
+x0 = np.zeros(n); x_target = np.zeros(n)
+Xs, Us = mpc.simulate(x0, steps=50, x_target=x_target)
 ```
 
-### Design Control
+---
 
-```python
-# See CONTROL_THEORY_HANDOFF.md for complete guide
-```
+### Limitations and assumptions
+- Linear, time‑invariant dynamics; ignores nonlinearities, delays, saturation
+- Top‑k=3 incoming edges enforces uniform in‑degree (not scale‑free)
+- Methylation integration via correlation‑based scaling (associational, not causal)
+- One cancer type (TCGA BRCA); no cross‑dataset or wet‑lab validation
+- Control examples are unconstrained (no input/state bounds); B design is heuristic
 
 ---
 
-## Performance
-
-| Task            | Time                 | Notes                    |
-| --------------- | -------------------- | ------------------------ |
-| Data loading    | 5 sec                | TCGA data                |
-| Preprocessing   | 10 sec               | Variance filtering       |
-| GRN inference   | 15-20 min            | ElasticNet (8,378 genes) |
-| Methylation     | 2 sec                | Correlation computation  |
-| Stabilization   | 60 sec               | Gershgorin + eigenvalues |
-| Validation      | 2-3 min              | 8 network metrics        |
-| **Total** | **~20-25 min** | End-to-end pipeline      |
+### Files you need
+- `o2/A_final_stable.npz`: final system matrix (CSR sparse)
+- `o2/genes_final.csv`: gene names
+- `o2/graph_stats.json`, `o2/stabilization_info.json`, `o2/integration_params.json`: metrics
+- Plots: `o2/eigenvalue_spectrum.png`, `o2/degree_distributions.png`, `o2/random_network_comparison.png`
+- Control helpers: `mpc.py` (finite‑horizon LQR/MPC, B‑matrix builders)
 
 ---
 
-## Validation
-
-### Network Properties ✅
-
-- Degree distributions computed
-- Scale-free test performed (γ=0.615, not scale-free due to TOP_K)
-- Small-world properties confirmed (clustering=0.133, path=3.77)
-- Hub genes identified (max out-degree=353)
-
-### Stability ✅
-
-- All eigenvalues have Re(λ) < 0
-- Spectral abscissa = -1.16
-- Gershgorin guarantee satisfied
-- System is globally asymptotically stable
-
-### Controllability ✅
-
-- 7,899 driver nodes (94%)
-- Sparse actuation possible
-- Hub genes are control candidates
-- Ready for control design
-
----
-
-## Scientific Contribution
-
-1. **First** epigenetically-modulated GRN for breast cancer control
-2. **Novel** diagonal scaling method for methylation integration
-3. **Validated** system matrix for dynamical control design
-4. **Production-grade** implementation (1,270+ lines)
-5. **Comprehensive** documentation for reproducibility
-
----
-
-## Citation
-
+### Citation
 ```bibtex
 @misc{grn_control_2025,
   title={Epigenetically-Informed Gene Regulatory Network for Control Theory},
